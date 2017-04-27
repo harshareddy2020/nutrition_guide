@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<style>
+
+    .displayer {
+        border-style: ridge;
+        border-color: green;
+        border-width: 5px;
+        border-radius: 15px;
+        width: 280px;
+        color: lightseagreen;
+        font-family: Arial;
+        height: 550px;
+        overflow: scroll;
+    }
+
+    .parallel {
+        font: 10px sans-serif;
+    }
+
+    .background path {
+        fill: none;
+        stroke: #ddd;
+        shape-rendering: crispEdges;
+    }
+
+    .foreground path {
+        fill: none;
+    }
+
+    .brush .extent {
+        fill-opacity: .3;
+        stroke: #fff;
+        shape-rendering: crispEdges;
+    }
+
+    .axis line,
+    .axis path {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .axis text {
+        text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        cursor: move;
+    }
+    .circleToolTip {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        position: absolute;
+        display: none;
+        width: auto;
+        height: auto;
+        background: none repeat scroll 0 0 white;
+        border: 0 none;
+        border-radius: 8px 8px 8px 8px;
+        box-shadow: -3px 3px 15px #888888;
+        color: black;
+        font: 12px sans-serif;
+        padding: 5px;
+        text-align: center;
+        z-index:100;
+    }
+    text {
+        font: 12px sans-serif;
+    }
+
+
+
+
+
+
+    #bubble
+    {
+        float: inherit;
+        margin-left:40px;
+    }
+
+
+
+
+
+
+</style>
+<body>
+<nav class="navbar navbar-inverse">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">Nutrition Guide</a>
+        </div>
+        <div class="collapse navbar-collapse" id="myNavbar">
+            <ul class="nav navbar-nav">
+                <li>
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#">Analyze Consumption
+                        <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="index.html">Overview</a></li>
+                        <li><a href="parallelcoordinate.html">Distribution</a></li>
+                    </ul>
+                </li>
+                <li class="active"  ><a href="foodparallel.html">Choose Your Food</a></li>
+                <li><a href="#">About Us</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="../js/mainlib.js"></script>
+<script src="http://underscorejs.org/underscore.js"></script>
+<script>
+    var filteredData;
+    var div;
+    $(document).ready(function(){
+        var labeller = {
+            "Protein"                             : "Protein",
+            "Total Fat"                                : "Total Fat",
+            "Carbohydrate"                               : "Carbohydrates",
+            "Energy"                            : "Energy" ,
+            "Alcohol"  : "Alcohol",
+            "Water"                 : "Water",
+            "Caffeine"                     : "Caffeine",
+            "Theobromine"            : "Theobromine",
+            "Sugars, total"                      : "Sugar",
+            "Fiber,total dietary"                     : "Fiber",
+            "Calcium"              : "Calcium",
+            "Iron"                    : "Iron",
+            "Magnesium"                     : "Magnesium",
+            "Phosphorous"                     : "Phosphorous",
+            "Potassium"                     : "Potassium",
+            "Sodium"                 : "Sodium",
+            "Zinc"                 : "Zinc",
+            "Copper"                      : "Copper",
+            "Selenium"                   : "Selenium",
+            "Retinol"                   : "Retinol",
+            "Vitamin A, RAE"                     : "Vitamin A",
+            "Carotene, beta"                       : "Carotene, Beta",
+            "Carotene, alpha"                     : "Carotene, Alpha",
+            "Vitamin E (alpha-tocopherol)"                       : "Vitamin E",
+            "Vitamin D (D2 + D3)"                               : "Vitamin D",
+            "Cryptoxanthin, beta"                         : "Cryptoxanthin, beta",
+            "Lycopene"                         : "Lycopene",
+            "Lutein + zeaxanthin"                       : "Lutein + zeaxanthin",
+            "Vitamin C"             : "Vitamin C",
+            "Thiamin"             : "Thiamin",
+            "Riboflavin"                         : "Riboflavin",
+            "Niacin"                               : "Niacin",
+            "Vitamin B-6"                       : "VitaminB6",
+            "Folate, total"                            : "Folate, Total",
+            "Vitamin B-12"                     : "Vitamin B-12",
+            "Choline, total"        : "Choline, Total",
+            "Vitamin K (phylloquinone)"                      : "Vitamin K",
+            "Folic acid"                             : "Folic Acid",
+            "Folate, food"                            : "Folate, Food",
+            "Folate, DFE"                : "Folate, DFE",
+            "Vitamin E, added"                               : "Vitamin E, added",
+            "Vitamin B-12, added"                         : "VitaminB12a",
+            "Cholesterol"                       : "Cholestrol",
+            "Fatty acids, total saturated"                : "FattyAcids",
+            "4:0"                         : "607",
+            "6:0"                         : "608",
+            "8:0"                       : "609",
+            "10:0"             : "610",
+            "12:0"             : "611",
+            "14:0"                         : "612",
+            "16:0"                               : "613",
+            "18:0"                       : "614",
+            "18:1"                            : "617",
+            "18:2"                     : "618",
+            "18:3"        : "619",
+            "20:4"                      : "620",
+            "22:6"                             : "621",
+            "16:1"                            : "626",
+            "18:4"                : "627",
+            "20:1"                               : "628",
+            "20:5"                         : "629",
+            "22:1"                       : "630",
+            "22:5"                : "631",
+            "Fatty acids, total monounsaturated"                       : "645",
+            "Fatty acids, total polyunsaturated"                : "646",
+            "Fruits"  : "F_TOTAL",
+            "Citrus, Melons, and Berries"  : "F_CITMLB",
+            "Other Fruits"  :  "F_OTHER",
+            "Fruit Juice"  : "F_JUICE",
+            "Vegetables"  : "V_TOTAL",
+            "Dark Green Vegetables"  : "V_DRKGR",
+            "Total Red and Orange Vegetables"  : "V_REDOR_TOTAL",
+            "Tomoatoes"  : "V_REDOR_TOMATO",
+            "Other Red and Orange Vegetables"  : "V_REDOR_OTHER",
+            "Total Starchy Vegetables"  : "V_STARCHY_TOTAL",
+            "Potatoes"  : "V_Starchy_POTATO",
+            "Other_Starchy_Vegetables"  : "V_STARCHY_OTHER",
+            "Other_Vegetables"  : "V_OTHER",
+            "Beans and Vegetables"  : "V_OTHER",
+            "Beans and Peas"  : "V_LEGUMES",
+            "Grains"  : "G_TOTAL",
+            "Whole Grains"  : "G_WHOLE",
+            "Refined Grains"  : "G_REFINED",
+            "Total Protein Foods"  : "PF_TOTAL",
+            "Meat, Poultry, and Seafood"  : "PF_MPS_TOTAL",
+            "Meat"  : "PF_MEAT",
+            "Cured Meat"  : "PF_CUREDMEAT",
+            "Organ Meat"  : "PF_ORGAN",
+            "Poultry"  : "PF_POULT",
+            "Seafood High in n-3 Fatty Acids"  : "PF_SEAFD_HI",
+            "Seafood Low in n-3 Fatty Acids"  : "PF_SEAFD_LOW",
+            "Eggs"  : "PF_EGGS",
+            "Soy Products"  : "PF_SOY",
+            "Nuts and Seeds"  : "PF_NUTSDS",
+            "Beans and Peas"  : "PF_LEGUMES",
+            "Dairy"  : "D_TOTAL",
+            "Milk"  : "D_MILK",
+            "Yogurt"   : "D_YOGURT",
+            "Cheese"  : "D_CHEESE",
+            "Oils"  : "OILS",
+            "Solid Fats"  : "SOLID_FATS",
+            "Added Sugars"  : "ADD_SUGARS",
+            "Alcoholic Drinks"  : "A_DRINKS"
+        };
+
+        var margin = {top: 30, right: 10, bottom: 10, left: 30},
+            width = 1500 - margin.left - margin.right,
+            height = 300 - margin.top - margin.bottom;
+
+        var dimensions = [];
+
+
+        var x = d3.scalePoint().range([0, width]),
+            y = {},
+            dragging = {};
+
+        var line = d3.line(),
+            background,
+            foreground;
+
+        var svg = d3.select("body").select("svg").attr("class", "parallel")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var displayDiv = d3.select("body").select("div.displayer").attr("class", "displayer");
+
+
+        var shuffled_data = [];
+
+        var columns = ["Vegetables", "Fruits", "Beans and Peas", "Grains", "Meat, Poultry, and Seafood", "Dairy"];
+
+        d3.csv("../data/finalnutrient.csv", function(error, data) {
+
+             dimensions = columns.map(function(x){return labeller[x];});
+
+
+             console.log(dimensions);
+            shuffled_data = _.shuffle(data);
+            plotData = shuffled_data.slice(0,shuffled_data.length*0.1);
+            x.domain(dimensions);
+
+            dimensions.forEach(function(d){
+                y[d] = d3.scaleLinear().domain(d3.extent(data, function(dat) { return +dat[d]; }))
+                    .range([height, 0]);
+            });
+
+            background = svg.append("g")
+                .attr("class", "background")
+                .selectAll("path")
+                .data(plotData)
+                .enter().append("path")
+                .attr("d", path);
+
+            foreground = svg.append("g")
+                .attr("class", "foreground")
+                .selectAll("path")
+                .data(plotData)
+                .enter().append("path")
+                .attr("d", path)
+                //.attr("stroke", "#ff7143")
+                .attr("stroke", "#ff4e75")
+                .style("opacity", 0.75);
+
+            var g = svg.selectAll(".dimension")
+                .data(dimensions)
+                .enter().append("g")
+                .attr("class", "dimension")
+                .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
+                .call(d3.drag()
+                    .subject(function(d) { return {x: x(d)}; })
+                    .on("start", function(d) {
+                        dragging[d] = x(d);
+                        background.attr("visibility", "hidden");
+                    })
+                    .on("drag", function(d) {
+                        dragging[d] = Math.min(width, Math.max(0, d3.event.x));
+                        dimensions.sort(function(a, b) { return position(a) - position(b); });
+                        x.domain(dimensions);
+                        g.attr("transform", function(d) { return "translate(" + position(d) + ")"; })
+                    })
+                    .on("end", function(d) {
+                        delete dragging[d];
+                        transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+                        transition(foreground).attr("d", path);
+                        background
+                            .attr("d", path)
+                            .transition()
+                            .delay(500)
+                            .duration(0)
+                            .attr("visibility", null);
+                    }));
+
+
+            g.append("g")
+                .attr("class", "axis")
+                .each(function(d) { d3.select(this).call(d3.axisLeft(y[d])); });
+
+            g.append("text")
+                .style("text-anchor", "middle")
+                .attr("class", "label")
+                .attr("y", -9)
+                .text(function(d) { return columns[dimensions.indexOf(d)]; })
+                .style("cursor", "move");
+
+            g.append("g")
+                .attr("class", "brush")
+                .attr("id", function(d){return d;})
+                .each(function(d) {
+                    d3.select(this).call(d3.brushY()
+                        .on("start", brushstart)
+                        .on("brush", brush)
+                        .on("end", brushend));
+                })
+                .selectAll("rect")
+                .attr("x", -8)
+                .attr("width", 16);
+        });
+        dispFoodItems(displayDiv);
+
+        function position(d) {
+            var v = dragging[d];
+            return v == null ? x(d) : v;
+        }
+
+        function transition(g) {
+            return g.transition().duration(500);
+        }
+
+        function path(d) {
+            return line(dimensions.map(function(p) { return [position(p), y[p](d[p])]; }));
+        }
+
+        function brushstart() {
+            d3.select(this).selectAll("rect")
+                .attr("width", 16)
+                .attr("x", -8);
+            d3.event.sourceEvent.stopPropagation();
+        }
+
+        function brush() {
+            d3.select(this).selectAll("rect")
+                .attr("width", 16)
+                .attr("x", -8);
+        }
+
+        function brushend() {
+            var actives = dimensions.filter(function(p) {
+                    return !(!d3.brushSelection(document.getElementById(p))); }),
+                extents = actives.map(function(p) {
+                    var tempr = d3.brushSelection(document.getElementById(p));
+                    return [y[p].invert(tempr[1]), y[p].invert(tempr[0])];});
+            d3.select(this).selectAll("rect")
+                .attr("width", 16)
+                .attr("x", -8);
+
+            foreground.style("display", function(d) {
+                return actives.every(function(p, i) {
+                    return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+                }) ? null : "none";
+            });
+            dispFoodItems(displayDiv);
+        }
+
+        function actives(data) {
+            var actives = dimensions.filter(function(p) {
+                    return !(!d3.brushSelection(document.getElementById(p))); }),
+                extents = actives.map(function(p) {
+                    var tempr = d3.brushSelection(document.getElementById(p));
+                    return [y[p].invert(tempr[1]), y[p].invert(tempr[0])];});
+
+            // filter extents and excluded groups
+            var selected = [];
+            data
+                .map(function(d) {
+                    return actives.every(function(p, i) {
+                        return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+                    }) ? selected.push(d) : null;
+                });
+            return selected;
+        }
+        function dispFoodItems(displayDiv){
+            d3.csv("../data/finalnutrient.csv", function(error, rawData) {
+                filteredData = actives(rawData);
+                var division;
+                var toplot;
+                if (!$(".displayer>ul").is('*')) {
+                    division = displayDiv.append("ul");
+
+                }
+                else {
+                    division = displayDiv.select("ul");
+                }
+                if (filteredData.length > 20) {
+                    toplot = filteredData.slice(0, 20);
+                }
+                else {
+                    toplot = filteredData;
+                }
+
+
+                console.log(filteredData);
+
+
+                var selection = division.selectAll("li").data(toplot);
+                var oldSelection = selection.select("text");
+                var newSelection = selection.enter().append("li").append("text");
+                selection.exit().remove();
+                newSelection.merge(oldSelection).text(function (d) {
+                    return d['Main_food_description'];
+                })
+
+            });}
+
+    })
+
+
+
+    function updateChart(){
+
+        var e=document.getElementById("bubble");
+        e.innerHTML="";
+        delete e;
+
+        d3.csv("../data/finalnutrient.csv", function randomData(dat) {
+        var data=filteredData;
+            var xl=getX();
+            var yl=getY();
+            var br=getZ();
+
+            var dscale=d3.scaleLinear().range([2,15]).domain([
+                d3.min(data,function (d) { return +d[br] }),
+                d3.max(data,function (d) { return +d[br] })
+            ]).nice();
+            var i=0;
+            var key=xl;
+            var ykey=yl;
+
+
+          /*  data.forEach(function(d) {
+                d.P = +d.P;
+                d.E = +d.E;
+                d[key]=+d[key];
+                d[ykey]=+d[ykey];
+            });*/
+            var margin = { top: 20, right: 20, bottom: 30, left: 30 };
+            width = 1000 - margin.left - margin.right,
+                height = 600 - margin.top - margin.bottom;
+
+            var hover = d3.select("body").append("div")
+                .attr("class", "circleToolTip");
+
+            var Color =	["#8b4513", "#faebd7", "#f0fff0", "#ff4500", "#66cdaa", "#eedd82", "#00ffff", "#b22222", "#deb887", "#228b22", "#bc8f8f", "#ffa500", "#4169e1", "#b03060", "#778899", "#8b8b83", "#adff2f", "#32cd32", "#cd5c5c"];
+
+
+            var x = d3.scaleLinear()
+                .range([0,width])
+                .domain([d3.min(data,function (d) { return d[key] }),
+                        d3.max(data,function (d) { return d[key] })])
+                .nice();
+
+            var y = d3.scaleLinear()
+                .domain([d3.min(data,function (d) { return d[ykey] }),
+                        d3.max(data,function (d) { return d[ykey] })])
+                .range([height,0])
+                .nice();
+
+            var i=-1;
+
+            var xAxis = d3.axisBottom(x).ticks(12),
+                yAxis = d3.axisLeft(y).ticks(12 * height / width);
+
+            var brush = d3.brush().extent([[0, 0], [width, height]]).on("end", brushended),
+                idleTimeout,
+                idleDelay = 350;
+
+            var svg1 = d3.select("body").select("#bubble")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var clip = svg1.append("defs").append("svg:clipPath")
+                .attr("id", "clip")
+                .append("svg:rect")
+                .attr("width", width )
+                .attr("height", height )
+                .attr("x", 0)
+                .attr("y", 0);
+
+            var xExtent = d3.extent(data, function (d) { return d[key]; });
+            var yExtent = d3.extent(data, function (d) { return d[ykey]; });
+            x.domain(d3.extent(data, function (d) { return d[key]; })).nice();
+            y.domain(d3.extent(data, function (d) { return d[ykey]; })).nice();
+            var scatter = svg1.append("g")
+                .attr("id", "scatterplot")
+                .attr("clip-path", "url(#clip)");
+
+            var context = scatter.append("g");
+
+            context
+                .attr("class", "brush")
+                .call(brush);
+
+            var selectedStuff = scatter.selectAll(".circle")
+                .data(data)
+                .enter().append("circle");
+
+            selectedStuff
+                .attr("class", "dot")
+                .attr("r", function(d){i++;return dscale(d[br]);})
+                .attr("cx", function (d) { return x(d[key]); })
+                .attr("cy", function (d) { return y(d[ykey]); })
+                .attr("opacity", 0.5)
+                .style("fill", function (d) { return d.Color; });
+
+            selectedStuff.on("mousemove", function(d){
+                hover.style("left", d3.event.pageX+10+"px");
+                hover.style("top", d3.event.pageY-25+"px");
+                hover.style("display", "inline-block");
+                hover.html((d['DESCRIPTION'])+"<br>"+key+" = "+d[key]+"<br>"+ykey+" = "+d[ykey]);
+            });
+            selectedStuff.on("mouseout", function(d){
+                hover.style("display", "none");
+            });
+
+            svg1.append("g")
+                .attr("class", "x axis")
+                .attr('id', "axis--x")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            scatter.append("text")
+                .style("text-anchor", "end")
+                .attr("x", width)
+                .attr("y", height - 8)
+                .text(xl);
+
+            svg1.append("g")
+                .attr("class", "y axis")
+                .attr('id', "axis--y")
+                .call(yAxis);
+
+            scatter.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", "1em")
+                .style("text-anchor", "end")
+                .text(yl);
+
+
+
+
+            function brushended() {
+
+                var s = d3.event.selection;
+                if (!s) {
+                    if (!idleTimeout) return idleTimeout = setTimeout(idled, idleDelay);
+                    x.domain(d3.extent(data, function (d) { return d[key]; })).nice();
+                    y.domain(d3.extent(data, function (d) { return d[ykey]; })).nice();
+                } else {
+
+                    x.domain([s[0][0], s[1][0]].map(x.invert, x));
+                    y.domain([s[1][1], s[0][1]].map(y.invert, y));
+                    scatter.select(".brush").call(brush.move, null);
+                }
+                zoom();
+            }
+
+
+           function idled() {
+                idleTimeout = null;
+            }
+
+            function zoom() {
+
+                var t = scatter.transition().duration(750);
+                svg1.select("#axis--x").transition(t).call(xAxis);
+                svg1.select("#axis--y").transition(t).call(yAxis);
+                scatter.selectAll("circle").transition(t)
+                    .attr("cx", function (d) { return x(d[key]); })
+                    .attr("cy", function (d) { return y(d[ykey]); });
+            }
+
+            function idled() {
+                idleTimeout = null;
+            }
+
+            function zoom() {
+
+                var t = scatter.transition().duration(750);
+                svg1.select("#axis--x").transition(t).call(xAxis);
+                svg1.select("#axis--y").transition(t).call(yAxis);
+                scatter.selectAll("circle").transition(t)
+                    .attr("cx", function (d) { return x(d[key]); })
+                    .attr("cy", function (d) { return y(d[ykey]); });
+            }
+            var name=["chocolate and candy", "Dairy products", "baby products", "Meat products", "seafood", "burgers and sandwiches", "frozen meals", "soups, broth and sauces", "Egg Dishes", "Beans and Peas", "Nuts and seeds", "Baked Items", "Boiled food", "Cereal", "Beverages", "Mexican food", "Oils toppings", "Fruits and Vegetables", "Alcohol"];
+            var legend = svg1.selectAll(".legend")
+                .data(Color)
+                .enter().append("g")
+                .attr("class", "legend")
+                .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+            legend.append("rect")
+                .attr("x", width - 18)
+                .attr("width", 18)
+                .attr("height", 18)
+                .style("fill", function(d){return d;});
+
+            legend.append("text")
+                .attr("x", width - 24)
+                .attr("y", 9)
+                .attr("dy", ".35em")
+                .style("text-anchor", "end")
+                .text(function(d, i) { return name[i];})
+
+
+        });
+    }
+
+
+
+
+
+    function getX(){
+        var node = d3.select('#xdropdown').node();
+        var i = node.selectedIndex;
+        return node[i].value;
+    }
+
+    // Returns the selected option in the X-axis dropdown.
+    function getY(){
+        var node = d3.select('#ydropdown').node();
+        var i = node.selectedIndex;
+        return node[i].value;
+    }
+
+    function getZ(){
+        var node = d3.select('#zdropdown').node();
+        var i = node.selectedIndex;
+        return node[i].value;
+    }
+
+
+
+    // ENDS HERE
+
+
+
+</script>
+
+<svg class="parallel"></svg>
+<table>
+    <tr>
+        <td><div class="displayer"></div></td>
+
+
+<td width="1080px" height="700px"><svg id="bubble"> </svg>
+
+    <div style="margin:30;">
+        <div style="display: table-cell; width: 150px;">
+            <label for="xdropdown">X: </label><select id="xdropdown">
+            <option val="Protein">Protein</option>
+            <option val="Vitamin A">Vitamin A</option>
+            <option val="Vitamin E">Vitamin E</option>
+            <option val="Vitamin D">Vitamin D</option>
+            <option val="Vitamin C">Vitamin C</option>
+            <option val="Vitamin B-12">Vitamin B-12</option>
+            <option val="Vitamin K">Vitamin K</option>
+        </select>
+        </div>
+        <div style="display: table-cell; width: 150px;">
+            <label for="ydropdown">Y: </label><select id="ydropdown">
+            <option val="Carbohydrates">Carbohydrates</option>
+            <option val="Energy">Energy</option>
+            <option val="Fiber">Fiber</option>
+            <option val="Calcium">Calcium</option>
+            <option val="Sodium">Sodium</option>
+            <option val="Potassium">Potassium</option>
+        </select>
+        </div>
+
+
+        <div style="display: table-cell; width: 150px;">
+            <label for="zdropdown">Bubble Radius: </label><select id="zdropdown">
+            <option val="Sugar">Sugar</option>
+            <option val="Water">Water</option>
+            <option val="Cholestrol">Cholestrol</option>
+            <option val="FattyAcids">FattyAcids</option>
+        </select>
+        </div>
+
+
+
+    <div style="display: table-cell; width: 150;">
+        <button id="update" onclick="updateChart()">Update</button>
+    </div>
+</div>
+
+
+
+<!-- <td width="1080px" height="400px"><iframe frameborder="0" height="700px" width="1080px" src="Buble%20Final.html" ></iframe>--->
+    </td></tr></table>
+</body>

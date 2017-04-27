@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <title>DV Project</title>
+    <!--<script src = ''></script>-->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href = "../CSS/merger.css">
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="../js/vio.js"></script>
+    <script src="../js/stackhist.js"></script>
+    <script src="../js/stackarea.js"></script>
+    <script src="../js/paired.js"></script>
+    <script src="../js/mainlib.js"></script>
+    <script src="../js/yinteract.js"></script>
+    <script src="../js/xinteract.js"></script>
+    <style>
+        .yInteract{
+            cursor: pointer;
+        }
+        .xInteract{
+            cursor: pointer;
+        }
+        html{
+            background: antiquewhite;
+        }
+        svg{
+            background: antiquewhite;
+        }
+    </style>
+</head>
+<body style = "background: antiquewhite">
+<nav class="navbar navbar-inverse">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">Nutrition Guide</a>
+        </div>
+        <div class="collapse navbar-collapse" id="myNavbar">
+            <ul class="nav navbar-nav">
+                <li class="active">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#">Analyze Consumption
+                        <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li class="active"><a href="index.html">Overview</a></li>
+                        <li><a href="parallelcoordinate.html">Distribution</a></li>
+                    </ul>
+                </li>
+                <li><a href="foodparallel.html">Choose Your Food</a></li>
+                <li><a href="#">About Us</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<svg></svg>
+
+<script>
+    var svg = d3.select("svg");
+    var width = 0.95*$(document).width();
+    var height = 0.90*$(document).height();
+    svg.attr("height", height).attr("width", width);
+    var tx, ty;
+    var isNominal = false;
+
+    var pairedPlot = pairedHist;
+    var vio = vioPlot;
+    var another = stackArea;
+    var gyInteractHeight = 0.9*height;
+    var gyInteractWidth = 0.1*width;
+    tx = 0;
+    ty = 0;
+    var gyInteract = svg.append("g").attr("class", "yInteract")
+        .attr("transform", "translate(" + tx + "," + ty + ")");
+    drawYInteract(gyInteract, gyInteractHeight, gyInteractWidth);
+
+    var gxInteractHeight = 0.1*height;
+    var gxInteractWidth = width;
+    tx = 0.1 * width;
+    ty = 0.85 * height;
+    var gxInteract = svg.append("g").attr("class", "xInteract")
+        .attr("transform", "translate(" + tx + "," + ty + ")");
+    drawXInteract(gxInteract, gxInteractHeight, gxInteractWidth);
+
+    var pairedHeight = 0.8*height;
+    var pairedWidth = 0.35*width;
+    tx = 0.67*width;
+    ty = 0;
+    var pairedDiv = d3.select("body").append("div").attr("class", "pairedToolTip");
+    var gMain = svg.append("g").attr("class", "mainPad")
+        .attr("transform", "translate(" + tx + "," + ty + ")");
+
+    var vioHeight = 0.4*height;
+    var vioWidth = 0.55*width;
+    tx = 0.15*width;
+    ty = 0;
+    var gVio = svg.append("g").attr("class", "vioPad")
+        .attr("transform", "translate(" + tx + "," + ty + ")");
+
+    var plotWidth = 0.55*width;
+    var plotHeight = 0.4*height;
+    tx = 0.15*width;
+    ty = 0.4*height;
+    var anotherG = svg.append("g").attr("class", "plotPad")
+        .attr("transform", "translate(" + tx + "," + ty + ")");
+    var redraw = function (){
+        pairedPlot.redraw(gMain, pairedHeight, pairedWidth, pairedDiv);
+        vio.redraw(gVio, vioHeight, vioWidth, ySelectedOption);
+//        if(xSelectedOption == "Race" && isNominal){
+//            anotherG.remove();
+//
+//        }
+        if(xSelectedOption == "Race" && !isNominal){
+            isNominal = true;
+            anotherG.remove();
+            anotherG = svg.append("g").attr("class", "plotPad")
+                .attr("transform", "translate(" + tx + "," + ty + ")");
+            stackHist.redraw(anotherG, plotHeight, plotWidth);
+        }
+        else if(xSelectedOption == "Race" && isNominal){
+            stackHist.redraw(anotherG, plotHeight, plotWidth);
+        }
+        else if(xSelectedOption != "Race" && isNominal){
+            isNominal = false;
+            anotherG.remove();
+            anotherG = svg.append("g").attr("class", "plotPad")
+                .attr("transform", "translate(" + tx + "," + ty + ")");
+            stackArea.redraw(anotherG, plotHeight, plotWidth);
+        }
+        else{
+            stackArea.redraw(anotherG, plotHeight, plotWidth);
+        }
+    };
+    redraw();
+</script>
+<script src="../js/yinteract.js"></script>
+</body>
+</html>

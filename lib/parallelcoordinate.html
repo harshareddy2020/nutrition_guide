@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style>
+
+        svg {
+            font: 10px sans-serif;
+        }
+
+        .background path {
+            fill: none;
+            stroke: #ddd;
+            shape-rendering: crispEdges;
+        }
+
+        .foreground path {
+            fill: none;
+        }
+
+        .brush .extent {
+            fill-opacity: .3;
+            stroke: #fff;
+            shape-rendering: crispEdges;
+        }
+
+        .axis line,
+        .axis path {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+            cursor: move;
+        }
+        .axis label{
+            font-size: 100%;
+            font-weight: 700;
+        }
+        .pieToolTip {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            position: absolute;
+            display: none;
+            width: auto;
+            height: auto;
+            background: none repeat scroll 0 0 white;
+            border: 0 none;
+            border-radius: 8px 8px 8px 8px;
+            box-shadow: -3px 3px 15px #888888;
+            color: black;
+            font: 12px sans-serif;
+            padding: 5px;
+            text-align: center;
+        }
+        .plotToolTip {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            position: absolute;
+            display: none;
+            width: auto;
+            height: auto;
+            background: none repeat scroll 0 0 white;
+            border: 0 none;
+            border-radius: 8px 8px 8px 8px;
+            box-shadow: -3px 3px 15px #888888;
+            color: black;
+            font: 12px sans-serif;
+            padding: 5px;
+            text-align: center;
+        }
+        text {
+            font: 12px sans-serif;
+        }
+        .prettyLabel{
+            font-family: Impact,Haettenschweiler,Franklin Gothic Bold,Charcoal,Helvetica Inserat,Bitstream Vera Sans Bold,Arial Black,sans serif;
+            font-size: 49px;
+            font-style: oblique;
+            font-variant: small-caps;
+            font-weight: 700;
+            line-height: 24.5px;
+        }
+
+    </style>
+</head>
+<body style = "background: antiquewhite">
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="../js/mainlib.js"></script>
+<script src="http://underscorejs.org/underscore.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<nav class="navbar navbar-inverse">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">Nutrition Guide</a>
+        </div>
+        <div class="collapse navbar-collapse" id="myNavbar">
+            <ul class="nav navbar-nav">
+                <li class="active">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#">Analyze Consumption
+                        <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="index.html">Overview</a></li>
+                        <li class="active"><a href="parallelcoordinate.html">Distribution</a></li>
+                    </ul>
+                </li>
+                <li><a href="foodparallel.html">Choose Your Food</a></li>
+                <li><a href="#">About Us</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<script>
+    var w = $(document).width();
+    var h = $(document).height();
+
+    var margin = {top: 30, right: 10, bottom: 10, left: 30},
+        width = w - margin.left - margin.right,
+        height = 0.4*h - margin.top - margin.bottom;
+
+    var pieMargin = {top: 10, right: 10, bottom: 10, left:30},
+        pieWidth = w - pieMargin.left - pieMargin.right,
+        pieHeight = 0.24*h - pieMargin.top - pieMargin.bottom;
+
+    var plotMargin = {top: 10, right: 10, bottom: 10, left:30},
+        plotWidth = w - plotMargin.left - plotMargin.right,
+        plotHeight = 0.24*h - plotMargin.top - plotMargin.bottom;
+
+    var x = d3.scalePoint().range([0, width]),
+        y = {},
+        dragging = {};
+
+    var line = d3.line(),
+        background,
+        foreground;
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var pieSvg = d3.select("body").append("svg")
+        .attr("width", pieWidth + pieMargin.left + pieMargin.right)
+        .attr("height", pieHeight + pieMargin.top + pieMargin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + pieMargin.left + "," + pieMargin.top + ")");
+
+    var plotSvg = d3.select("body").append("svg")
+        .attr("width", plotWidth + plotMargin.left + plotMargin.right)
+        .attr("height", plotHeight + plotMargin.top + plotMargin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + pieMargin.left + "," + pieMargin.top + ")");
+
+    var div = d3.select("body").append("div").attr("class", "pieToolTip");
+    var div1 = d3.select("body").append("div").attr("class", "plotToolTip");
+
+    var shuffled_data = [];
+
+    var columns = ["Total fruits", "Total vegetables", "Total grains", "Total meat", "Total milk products", "Oils",
+        "Solid fats", "Added sugars", "Alcoholic beverages"];
+
+    d3.csv("../data/DR1_TOTupdate.csv", function(error, data) {
+
+        // Extract the list of dimensions and create a scale for each.
+        dimensions = columns.map(function(x){return labeller[x];});
+        console.log(dimensions);
+//        x.domain(dimensions = d3.keys(cars[0]).filter(function(d) {
+//            return d != "name" && (y[d] = d3.scale.linear()
+//                    .domain(d3.extent(cars, function(p) { return +p[d]; }))
+//                    .range([height, 0]));
+//        }));
+
+        shuffled_data = _.shuffle(data);
+        plotData = shuffled_data.slice(0,shuffled_data.length*0.0625);
+        x.domain(dimensions);
+
+        dimensions.forEach(function(d){
+                y[d] = d3.scaleLinear().domain(d3.extent(data, function(dat) { return +dat[d]; }))
+                    .range([height, 0]);
+            });
+
+        // Add grey background lines for context.
+        background = svg.append("g")
+            .attr("class", "background")
+            .selectAll("path")
+            .data(plotData)
+            .enter().append("path")
+            .attr("d", path);
+
+        // Add blue foreground lines for focus.
+        foreground = svg.append("g")
+            .attr("class", "foreground")
+            .selectAll("path")
+            .data(plotData)
+            .enter().append("path")
+            .attr("d", path)
+            //.attr("stroke", "#ffb377")
+            .attr("stroke", function (d, i){return colourrer[d["RIDRETH3"]];})
+            .style("opacity", 0.75);
+
+        // Add a group element for each dimension.
+        var g = svg.selectAll(".dimension")
+            .data(dimensions)
+            .enter().append("g")
+            .attr("class", "dimension")
+            .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
+            .call(d3.drag()
+                .subject(function(d) { return {x: x(d)}; })
+                .on("start", function(d) {
+                    dragging[d] = x(d);
+                    background.attr("visibility", "hidden");
+                })
+                .on("drag", function(d) {
+                    dragging[d] = Math.min(width, Math.max(0, d3.event.x));
+                    //foreground.attr("d", path);
+                    dimensions.sort(function(a, b) { return position(a) - position(b); });
+                    x.domain(dimensions);
+                    g.attr("transform", function(d) { return "translate(" + position(d) + ")"; })
+                })
+                .on("end", function(d) {
+                    delete dragging[d];
+                    transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+                    transition(foreground).attr("d", path);
+                    background
+                        .attr("d", path)
+                        .transition()
+                        .delay(500)
+                        .duration(0)
+                        .attr("visibility", null);
+                }));
+
+        // Add an axis and title.
+        g.append("g")
+            .attr("class", "axis")
+            .each(function(d) { d3.select(this).call(d3.axisLeft(y[d])); });
+
+        g.append("text")
+            .style("text-anchor", "middle")
+            .attr("class", "label")
+            .attr("y", -9)
+            .text(function(d) { return columns[dimensions.indexOf(d)]; })
+            .style("cursor", "move");
+
+        // Add and store a brush for each axis.
+        g.append("g")
+            .attr("class", "brush")
+            .attr("id", function(d){return d;})
+            .each(function(d) {
+                d3.select(this).call(d3.brushY()
+                    .on("start", brushstart)
+                    .on("brush", brush)
+                    .on("end", brushend));
+            })
+            .selectAll("rect")
+            .attr("x", -8)
+            .attr("width", 16);
+    });
+    plotpie(pieSvg, pieHeight, pieWidth);
+    plotbar(plotSvg, plotHeight, plotWidth);
+
+    function position(d) {
+        var v = dragging[d];
+        return v == null ? x(d) : v;
+    }
+
+    function transition(g) {
+        return g.transition().duration(500);
+    }
+
+    // Returns the path for a given data point.
+    function path(d) {
+        return line(dimensions.map(function(p) { return [position(p), y[p](d[p])]; }));
+    }
+
+    function brushstart() {
+        d3.select(this).selectAll("rect")
+            .attr("width", 16)
+            .attr("x", -8);
+        d3.event.sourceEvent.stopPropagation();
+    }
+
+    // Handles a brush event, toggling the display of foreground lines.
+    function brush() {
+        d3.select(this).selectAll("rect")
+            .attr("width", 16)
+            .attr("x", -8);
+    }
+
+    function brushend() {
+        var actives = dimensions.filter(function(p) {
+                return !(!d3.brushSelection(document.getElementById(p))); }),
+            extents = actives.map(function(p) {
+                var tempr = d3.brushSelection(document.getElementById(p));
+                return [y[p].invert(tempr[1]), y[p].invert(tempr[0])];});
+        d3.select(this).selectAll("rect")
+            .attr("width", 16)
+            .attr("x", -8);
+
+        foreground.style("display", function(d) {
+            return actives.every(function(p, i) {
+                return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+            }) ? null : "none";
+        });
+        plotpie(pieSvg, pieHeight, pieWidth);
+        plotbar(plotSvg, plotHeight, plotWidth);
+    }
+
+    function actives(data) {
+        var actives = dimensions.filter(function(p) {
+                return !(!d3.brushSelection(document.getElementById(p))); }),
+            extents = actives.map(function(p) {
+                var tempr = d3.brushSelection(document.getElementById(p));
+                return [y[p].invert(tempr[1]), y[p].invert(tempr[0])];});
+
+        // filter extents and excluded groups
+        var selected = [];
+        data
+            .map(function(d) {
+                return actives.every(function(p, i) {
+                    return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+                }) ? selected.push(d) : null;
+            });
+        return selected;
+    }
+
+    function plotpie(pieSvg, pieHeight, pieWidth){
+        var eachp = ['Gender', 'Age', 'Race', "% Federal Poverty"];
+//        var genRange = ['Male', 'Female'];
+//        var ethRange = ['Hispanic', 'Non-Hispanic Asian', 'Non-Hispanic Black', 'Non-Hispanic White', 'Other'];
+//        var incRange = [];
+//        var ageRange = [' 0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80+'];
+        var plotx = d3.scaleBand().rangeRound([0, pieWidth]).paddingInner(0.1).domain(eachp);
+
+        var pie =d3.pie()
+            .value(function(d) { return d['value']; })
+            .sort(null);
+
+        var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        var radius = Math.min(plotx.bandwidth(), pieHeight) / 2;
+
+        var arc = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius - 20);
+
+        d3.csv("../data/DR1_TOTupdate.csv", function(error, rawData) {
+            if (error) throw error;
+
+//        var data = d3.nest().key(function (d) {
+//            return binner('RIAGENDR', d['RIAGENDR']);
+//        }).rollup(function(d){return d.length}).entries(rawData.filter(function(d){return d['RIAGENDR']==1;}));
+
+            var data, path, pg;
+            var filteredData = actives(rawData);
+
+            eachp.forEach(function(label){
+
+                if(!$("g#arc"+labeller[label]).is('*')){
+                    pg = pieSvg.append("g").attr("id", function(d){return "arc"+labeller[label];})
+                        .attr("transform", "translate(" + (plotx(label) + plotx.bandwidth() / 2) + "," + pieHeight / 2 + ")");
+                }
+                else{
+                    pg = pieSvg.select("g#arc"+labeller[label]);
+                }
+
+                data = d3.nest().key(function (d) {
+                    return binner(labeller[label], d[labeller[label]]);
+                }).sortKeys(d3.ascending)
+                    .rollup(function(d){return d.length}).entries(filteredData);
+
+                pg.append("text").text(label).attr("transform", "translate(-" +radius+", -"+radius+")");
+
+                var oldSelection = pg.datum(data).selectAll("path")
+                    .data(pie);
+                var newSelection = oldSelection.enter();
+                var totalSelection = newSelection.append("path").merge(oldSelection);
+
+                path = totalSelection
+                    .attr("fill", function(d, i) { return color(i); })
+                    .transition().duration(750)
+                    .attrTween("d", arcTween)
+                    .each(function(d) { this._current = d; });
+
+                totalSelection.on("mousemove", function(d){
+                    div.style("left", d3.event.pageX+10+"px");
+                    div.style("top", d3.event.pageY-25+"px");
+                    div.style("display", "inline-block");
+                    var percent = Math.round(((d.endAngle - d.startAngle)*100)/(2*Math.PI));
+                    div.html((d.data.key)+"<br>"+(percent)+"%");
+                });
+                totalSelection.on("mouseout", function(d){
+                    div.style("display", "none");
+                });
+
+            });
+            function arcTween(a) {
+//                var i, start = {
+//                    startAngle: 0,
+//                    endAngle: 0
+//                };
+                var i = d3.interpolate(this._current, a);
+                return function (t) {
+                    return arc(i(t));
+                };
+            }
+        });
+    }
+    function plotbar(barSvg, barHeight, barWidth){
+        var eachp = ['Gender', 'Age', 'Race', "% Federal Poverty"];
+        var plotx = d3.scaleBand().rangeRound([0, barWidth]).paddingInner(0.1).domain(eachp);
+        var color = d3.scaleOrdinal(d3.schemeCategory10);
+        var domains = {
+            'Gender'   : ['Female', 'Male'],
+            'Race'      : ['Hispanic', 'Non-Hispanic Asian', 'Non-Hispanic Black', 'Non-Hispanic White', 'Other'],
+            'Age' : [' 0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80+'],
+            '% Federal Poverty' : ['  0-100%', '100-133%', '133-150%', '150-185%', '185-200%', '200-250%', '250-300%', '300-400%', ':  >400%']
+        };
+
+        d3.csv("../data/DR1_TOTupdate.csv", function(error, rawData) {
+            if (error) throw error;
+
+//        var data = d3.nest().key(function (d) {
+//            return binner('RIAGENDR', d['RIAGENDR']);
+//        }).rollup(function(d){return d.length}).entries(rawData.filter(function(d){return d['RIAGENDR']==1;}));
+
+            var datas, datasub, pg, yscale, xscale;
+            var filteredData = actives(rawData);
+
+            yscale = d3.scaleBand().rangeRound([0, barHeight]).paddingInner(0.1).paddingOuter(0.1);
+            xscale = d3.scaleLinear().range([0, plotx.bandwidth()]).domain([0,1]);
+
+            eachp.forEach(function(label){
+
+                if(!$("g#barplot"+labeller[label]).is('*')){
+                    pg = barSvg.append("g").attr("id", function(d){return "barplot"+labeller[label];})
+                        .attr("transform", "translate(" + (plotx(label)) + ",0 )");
+                }
+                else{
+                    pg = barSvg.select("g#barplot"+labeller[label]);
+                }
+
+                datas = d3.nest().key(function (d) {
+                    return binner(labeller[label], d[labeller[label]]);
+                }).sortKeys(d3.ascending)
+                    .rollup(function(d){return d.length}).entries(rawData);
+
+                datasub = d3.nest().key(function (d) {
+                    return binner(labeller[label], d[labeller[label]]);
+                }).sortKeys(d3.ascending)
+                    .rollup(function(d){return d.length}).entries(filteredData);
+
+                yscale.domain(domains[label]);
+
+                var oldSelection = pg.selectAll(".barrect")
+                    .data(datasub);
+                oldSelection.select(".posit").transition().duration(transitionTime)
+                    .attr("width", function(d){
+                        return xscale(d.value/datas[domains[label].indexOf(d.key)].value);});
+                oldSelection.select(".empty").transition().duration(transitionTime)
+                    .attr("x", function(d){
+                        return xscale(d.value/datas[domains[label].indexOf(d.key)].value);})
+                    .attr("width", function(d){
+                        return xscale(1-(d.value/datas[domains[label].indexOf(d.key)].value));});
+                var newSelection = oldSelection.enter().append("g")
+                    .attr("class", "barrect");
+                newSelection.append("rect").attr("class", "posit")
+                    .attr("y", function(d){return yscale(d.key);})
+                    .attr("x", 0)
+                    .attr("height", yscale.bandwidth())
+                    .attr("fill", function(d, i) {return color(i); })
+                    .transition().duration(transitionTime)
+                    .attr("width", function(d){
+                        return xscale(d.value/datas[domains[label].indexOf(d.key)].value);});
+                newSelection.append("rect").attr("class", "empty")
+                    .attr("y", function(d){return yscale(d.key);})
+                    .attr("height", yscale.bandwidth())
+                    .attr("fill", "#faebd7")
+                    .attr("stroke", "#000000")
+                    .transition().duration(transitionTime)
+                    .attr("x", function(d){
+                        return xscale(d.value/datas[domains[label].indexOf(d.key)].value);})
+                    .attr("width", function(d){
+                        return xscale(1-(d.value/datas[domains[label].indexOf(d.key)].value));});
+                var totalSelection = newSelection.merge(oldSelection);
+
+                totalSelection.each(function(d){this._todisp = Math.round(100*d.value/datas[domains[label].indexOf(d.key)].value);});
+
+//                totalSelection
+//                    .select(".barrect").select("rect")
+//                    .transition().duration(transitionTime)
+//                    .attr("width", function(d){
+//                        return xscale(d.value/datas[domains[label].indexOf(d.key)].value);});
+//
+//                totalSelection.select("rect")
+//                    .attr("fill", function(d, i) { console.log(color(i));return color(i); })
+//                    .transition().duration(750);
+
+                totalSelection.on("mousemove", function(d){
+                    div1.style("left", d3.event.pageX+10+"px");
+                    div1.style("top", d3.event.pageY-25+"px");
+                    div1.style("display", "inline-block");
+//                    var temp = null;
+//                    eachp.forEach(function(element){
+//                        if(domains[element].indexOf(d.key) > -1){
+//                            temp = element;
+//                            console.log(d.key);
+//                            console.log(domains[temp].indexOf(d.key));
+//                        }
+//                    });
+                    var top = this._todisp;
+                    div1.html((d.key)+"<br>"+top+"%");
+                });
+                totalSelection.on("mouseout", function(d){
+                    div1.style("display", "none");
+                });
+
+            });
+        });
+    }
+
+</script>
+</body>
+</html>
